@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify
-import requests
+from flask_cors import CORS
 from telegram import Bot
 
 app = Flask(__name__)
+CORS(app)  # Включаем поддержку CORS для всех маршрутов
 
-# Токен вашего Telegram бота
 BOT_TOKEN = "8472306870:AAGjlAiWmvFhsIqhuQ-hKGpaD3A8UkElZws"
 bot = Bot(token=BOT_TOKEN)
 
@@ -13,11 +13,10 @@ def send_image():
     data = request.json
     chat_id = data.get('chat_id')
     image_url = data.get('image_url')
-    
+
     if not chat_id or not image_url:
         return jsonify({"status": "error", "message": "chat_id or image_url is missing"}), 400
 
-    # Отправляем картинку в Telegram по URL напрямую
     try:
         bot.send_photo(chat_id=chat_id, photo=image_url)
     except Exception as e:
