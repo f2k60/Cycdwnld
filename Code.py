@@ -1,52 +1,34 @@
-import os
-import subprocess
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from flask import Flask, request, jsonify
+import requests
+from telegram import Bot, InputFile
 
-TOKEN = "8360021032:AAFbqzS-9RqYjTbiVAi5yxW_v_DEcRoh3BI"
+app = Flask(__name__)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Привет! Отправь мне видеофайл, и я верну тебе звук из него.")
+# Токен вашего Telegram бота
+BOT_TOKEN = "ВАШ_ТОКЕН_БОТА"
+bot = Bot(token=BOT_TOKEN)
 
-async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    video = update.message.video or update.message.document
-    if video is None:
-        await update.message.reply_text("Пожалуйста, отправь именно видеофайл.")
-        return
+@app.route('/send_image', methods=['POST'])
+def send_image():
+    data = request.json
+    chat_id = data.get('chat_id')
+    image_url = data.get('image_url')
+    
+    if not chat_id or not image_url:
+        return jsonify({"status": "error", "message": "chat_id or image_url is missing"}), 400
 
-    file_id = video.file_id
-    file = await context.bot.get_file(file_id)
+    # Скачиваем картинку
+    resp = requests.get(image_url)
+    if resp.status_code != 200:
+        return jsonify({"status": "error", "message": "Failed to download image"}), 400
 
-    input_path = f"temp_{file_id}.mp4"
-    output_path = f"audio_{file_id}.mp3"
+    # Отправляем картинку в Telegram чат
+    try:
+        bot.send_photo(chat_id=chat_id, photo=resp.content)
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-    await file.download_to_drive(input_path)
+    return jsonify({"status": "success", "message": "Image sent"}), 200
 
-    # Конвертируем видео в аудио через ffmpeg
-    command = ['ffmpeg', '-i', input_path, '-vn', '-acodec', 'mp3', output_path]
-    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-    # Отправляем аудио пользователю
-    with open(output_path, 'rb') as audio_file:
-        await update.message.reply_audio(audio_file)
-
-    # Удаляем временные файлы
-    os.remove(input_path)
-    os.remove(output_path)
-
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    await update.message.reply_text("Отправь видеофайл, чтобы я мог извлечь звук.")
-
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.VIDEO | filters.Document.VIDEO, handle_video))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-
-    print("Бот запущен...")
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    app.run(port=5000)
