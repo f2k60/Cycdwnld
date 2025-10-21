@@ -11,12 +11,10 @@ def send_image():
         return jsonify({"status": "error", "message": "chat_id or image_url is missing"}), 400
 
     try:
-        # Убрать префикс data:image/png;base64, если есть
         header, encoded = image_base64.split(',', 1)
         image_bytes = base64.b64decode(encoded)
         bio = BytesIO(image_bytes)
         bio.name = 'image.png'
-
         bot.send_photo(chat_id=chat_id, photo=bio)
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
