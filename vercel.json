@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "Code.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/send_image", "dest": "Code.py" }
+  ]
+}
